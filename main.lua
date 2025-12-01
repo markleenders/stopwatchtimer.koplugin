@@ -28,7 +28,7 @@ function SWDisplayWidget:init()
     self.now = os.time()
     self.paused = false
     self.pause_offset = 0
-    self.last_minute = -1  -- track when we last flashed
+    self.last_minute = 0  -- track when we last flashed
 
     self.ges_events.TapClose = {
         GestureRange:new{
@@ -51,7 +51,7 @@ function SWDisplayWidget:onShow()
 end
 
 function SWDisplayWidget:onTapClose()
-    --mle UIManager:unscheduleAll()
+    --mle UIManager:unscheduleAll() -> caused dump on exit?
     UIManager:unschedule(self.autoRefresh)
     UIManager:close(self)
 end
@@ -104,7 +104,7 @@ function SWDisplayWidget:onRestart()
     self.now = os.time()
     self.pause_offset = 0
     self.paused = false
-    self.last_minute = -1
+    self.last_minute = 0
     self.pause_button.text = _("Pause")
     self.time_widget:setText("00:00")
     UIManager:setDirty(self, "flashpartial")
