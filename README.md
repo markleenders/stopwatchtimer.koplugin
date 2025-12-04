@@ -16,7 +16,7 @@ Should work on every KOReader device (Kobo, PocketBook, Android, Linux…).
 2. Download the `stopwatchtimer.koplugin.zip` file from the latest release.
 3. Extract and copy the `stopwatchtimer.koplugin` folder into the `plugins` directory of your KOReader installation.
 4. Restart KOReader to load the plugin.
-5. 
+
 ## Usage
 
 Navigate to `Plugins -> More tools -> StopWatch / Timer` to open the widget. Tap
