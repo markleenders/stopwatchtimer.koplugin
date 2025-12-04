@@ -31,8 +31,8 @@ function StopWatchTimerDisplay:init()
     self.timer_minutes = 5
     self.timer_end_time = nil
     self.pause_offset = 0
-    self.last_minute = 0
     self.alarmed = false
+    self.paused_remaining = nil
 
     self.ges_events = {
         TapClose = {
@@ -45,6 +45,16 @@ function StopWatchTimerDisplay:init()
 
     self.covers_fullscreen = true
     self.modal = true
+
+    -- Create the large time display once
+    self.time_widget = TextBoxWidget:new{
+        text = "00:00",
+        face = Font:getFace(self.props.time_widget.font_name or "cfont", self.props.time_widget.font_size or 220),
+        width = Screen:getWidth(),
+        height = math.floor(Screen:getHeight() * 0.6),
+        alignment = "center",
+        bold = true,
+    }
 
     self[1] = self:render()
     UIManager:setDirty(nil, "full")
@@ -97,12 +107,23 @@ function StopWatchTimerDisplay:getTimeText()
         local elapsed = self.paused and self.pause_offset or (self.pause_offset + (os.time() - self.now))
         local _, m, s = Datetime.secondsToClock(elapsed, false, false):match("(%d+):(%d+):(%d+)")
         return T("%1:%2", m, string.format("%02d", s))
-    else
+    else  -- timer mode
         if not self.timer_end_time then
             self.timer_end_time = os.time() + self.timer_minutes * 60
         end
-        local remaining = math.max(0, self.timer_end_time - os.time())
-        if remaining == 0 then self:alarm() return "00:00" end
+
+        local remaining
+        if self.paused then
+            remaining = self.paused_remaining or math.max(0, self.timer_end_time - os.time())
+        else
+            remaining = math.max(0, self.timer_end_time - os.time())
+        end
+
+        if remaining == 0 then
+            self:alarm()
+            return "00:00"
+        end
+
         local _, m, s = Datetime.secondsToClock(remaining, false, false):match("(%d+):(%d+):(%d+)")
         return T("%1:%2", m, string.format("%02d", s))
     end
@@ -122,15 +143,7 @@ function StopWatchTimerDisplay:update()
     local txt = self:getTimeText()
     if self.time_widget.text ~= txt then
         self.time_widget:setText(txt)
-        local cur_min = (self.mode == "stopwatch")
-            and math.floor((self.pause_offset + os.time() - self.now)/60)
-            or  math.floor(math.max(0, self.timer_end_time - os.time())/60)
-        if cur_min ~= self.last_minute then
-            self.last_minute = cur_min
-            UIManager:setDirty(self, "flashpartial")
-        else
-            UIManager:setDirty(self, "ui")
-        end
+        UIManager:setDirty(self, "ui")
     end
 
     if self.current_mode ~= self.mode then
@@ -142,17 +155,33 @@ end
 
 function StopWatchTimerDisplay:autoRefresh()
     self:update()
-    UIManager:scheduleIn(1, self.autoRefresh, self) 
+    -- Update twice per second for smoother display and to avoid missed seconds
+    UIManager:scheduleIn(0.5, self.autoRefresh, self)
 end
 
 function StopWatchTimerDisplay:onTogglePause()
-    if self.mode == "timer" then return end
     self.paused = not self.paused
+
     if self.paused then
-        self.pause_offset = self.pause_offset + (os.time() - self.now)
+        if self.mode == "stopwatch" then
+            self.pause_offset = self.pause_offset + (os.time() - self.now)
+        else  -- timer mode
+            local remaining = math.max(0, self.timer_end_time - os.time())
+            self.paused_remaining = remaining
+        end
     else
-        self.now = os.time()
+        if self.mode == "stopwatch" then
+            self.now = os.time()
+        else  -- timer mode
+            if self.paused_remaining and self.paused_remaining > 0 then
+                self.timer_end_time = os.time() + self.paused_remaining
+                self.paused_remaining = nil
+            end
+        end
     end
+
+    -- Rebuild UI to update button text (Pause/Resume)
+    self[1] = self:render()
     UIManager:setDirty(self, "ui")
 end
 
@@ -162,27 +191,26 @@ function StopWatchTimerDisplay:onRestart()
     self.paused = false
     self.timer_end_time = nil
     self.alarmed = false
-    self.last_minute = -1
+    self.paused_remaining = nil
+
     self.time_widget:setText("00:00")
+
+    -- Rebuild UI so buttons (especially Pause/Resume) show correct text
+    self[1] = self:render()
     UIManager:setDirty(self, "flashpartial")
 end
 
 function StopWatchTimerDisplay:render()
     local s = Screen:getSize()
 
-    self.time_widget = TextBoxWidget:new{
-        text = "00:00",
-        face = Font:getFace(self.props.time_widget.font_name or "cfont", self.props.time_widget.font_size or 220),
-        width = s.w,
-        height = math.floor(s.h * 0.6),
-        alignment = "center",
-        bold = true,
-    }
-
     local mode_btn = self.mode == "stopwatch" and _("Timer") or _("Stopwatch")
     local row = {{ text = mode_btn, callback = function() self:toggleMode() end }}
 
     if self.mode == "timer" then
+        table.insert(row, {
+            text_func = function() return self.paused and _("Resume") or _("Pause") end,
+            callback = function() self:onTogglePause() end
+        })
         table.insert(row, {
             text = T(_("Set Time (%1 min)"), self.timer_minutes),
             callback = function() self:setTimerMinutes() end
@@ -204,7 +232,7 @@ function StopWatchTimerDisplay:render()
     local content = VerticalGroup:new{
         align = "center",
         VerticalSpan:new{ height = math.floor(s.h * 0.15) },
-        self.time_widget,
+        self.time_widget,  -- Use the persistent time widget
         VerticalSpan:new{ height = math.floor(s.h * 0.1) },
         self.buttons,
     }
@@ -222,7 +250,7 @@ function StopWatchTimerDisplay:toggleMode()
     self.pause_offset = 0
     self.timer_end_time = nil
     self.alarmed = false
-    self.last_minute = -1
+    self.paused_remaining = nil
     self.now = os.time()
     self[1] = self:render()
     UIManager:setDirty(nil, "full")
@@ -243,8 +271,9 @@ function StopWatchTimerDisplay:setTimerMinutes()
     -- Start the timer immediately with the new value
     self.timer_end_time = os.time() + self.timer_minutes * 60
     self.alarmed = false
+    self.paused = false
+    self.paused_remaining = nil
 
-    -- Update button text and refresh screen
     self[1] = self:render()
     UIManager:setDirty(nil, "full")
 end
