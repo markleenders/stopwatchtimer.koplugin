@@ -1,6 +1,6 @@
 local _ = require("gettext")
 return {
-    name = "stopwatch",
-    fullname = _("Stopwatch"),
-    description = _([[Shows a stopwatch in a fullscreen display.]]),
+    name = "stopwatchtimer",
+    fullname = _("StopwatchTimer"),
+    description = _([[Shows a stopwatch or a timer in a fullscreen display.]]),
 }
