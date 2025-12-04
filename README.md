@@ -29,3 +29,19 @@ the timer.
 Tested with Koreader 2025.10 on a Kobo Clara 2E and linux.
 
 [1]: https://github.com/koreader/koreader
+
+## Screenshots
+
+Stopwatch Running:
+
+![Stopwatch Running](screenshots/StopWatch-Running.png)
+
+Stopwatch Paused:
+
+![Stopwatch Running](screenshots/StopWatch-Paused.png)
+
+Timer Running:
+
+![Stopwatch Running](screenshots/Timer-Running.png)
+
+
