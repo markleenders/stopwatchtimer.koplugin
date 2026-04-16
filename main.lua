@@ -22,6 +22,7 @@ local T = require("ffi/util").template
 local _ = require("gettext")
 local PowerD = Device.powerd
 local Notification = require("ui/widget/notification")
+local Dispatcher = require("dispatcher")
 
 local StopWatchTimerDisplay = InputContainer:extend{ props = {} }
 
@@ -319,8 +320,23 @@ function StopWatchTimer:init()
         self.settings:flush()
     end
 
+    -- Create the shared display widget once
     self.display_widget = StopWatchTimerDisplay:new{ props = self.settings.data }
+
     self.ui.menu:registerToMainMenu(self)
+
+    -- Register the action for Gesture Manager
+    Dispatcher:registerAction("stopwatch_timer_show", {
+        category = "none",
+        event = "ShowStopWatchTimer",
+        title = _("StopWatch / Timer"),
+        general = true,
+        icon = "plugins/stopwatchtimer.koplugin/stopwatch.svg",
+    })
+end
+
+function StopWatchTimer:onStopwatchTimer()
+    self:onShow()         
 end
 
 function StopWatchTimer:addToMainMenu(menu_items)
@@ -340,6 +356,20 @@ function StopWatchTimer:addToMainMenu(menu_items)
             end
         end,
     }
+end
+
+function StopWatchTimer:onShowStopWatchTimer()
+    UIManager:show(self.display_widget)
+
+    -- Re-render to ensure it's up-to-date
+    self.display_widget[1] = self.display_widget:render()
+    UIManager:setDirty(nil, "full")
+
+    -- Start the refresh loop if not already running
+    if not self.display_widget.refresh_scheduled then
+        self.display_widget:autoRefresh()
+        self.display_widget.refresh_scheduled = true
+    end
 end
 
 return StopWatchTimer
