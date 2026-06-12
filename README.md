@@ -41,14 +41,13 @@ Select the action stopwatch_timer_show and for an icon select EC1A from the Nerd
 
 Stopwatch Running:
 
-![Stopwatch Running](screenshots/StopWatch-Running.png)
+<img width="1072" height="1448" alt="StopWatch-Running" src="https://github.com/user-attachments/assets/3068854b-667c-4bf1-8267-aea62e3dfce8" />
 
 Stopwatch Paused:
-
-![Stopwatch Running](screenshots/StopWatch-Paused.png)
+<img width="1072" height="1448" alt="StopWatch-Paused" src="https://github.com/user-attachments/assets/dda778de-b663-46b0-902a-a9fd9bcfdf46" />
 
 Timer Running:
+<img width="1072" height="1448" alt="Timer-Running" src="https://github.com/user-attachments/assets/0a2a5c1c-bb5b-4700-ac1e-72e88c59dcc3" />
 
-![Stopwatch Running](screenshots/Timer-Running.png)
 
 
