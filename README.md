@@ -7,10 +7,13 @@ And a timer which you can set in 5 minute increments from 5 up to 30 minutes wit
 ## Motivation
 
 I sometimes need a stopwatch or a timer, so why not use my ereader?
-
+You can even send it to the background.
 Should work on every KOReader device (Kobo, PocketBook, Android, Linux…).
 
 ## Installation
+
+The quickest way is to install (and update) the plugin with the [App Store](https://github.com/omer-faruq/appstore.koplugin).
+Or you can do it manually:
 
 1. Go to the [releases page](https://github.com/markleenders/stopwatchtimer.koplugin/releases).
 2. Download the `stopwatchtimer.koplugin.zip` file from the latest release.
@@ -29,6 +32,10 @@ the timer.
 Tested with Koreader 2025.10 on a Kobo Clara 2E and linux.
 
 [1]: https://github.com/koreader/koreader
+
+## Quick Action
+You can link a gesture to the stopwatch or in Simple-UI create a quick action.
+Select the action stopwatch_timer_show and for an icon select EC1A from the Nerd Font
 
 ## Screenshots
 
