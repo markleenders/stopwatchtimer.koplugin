@@ -2,8 +2,6 @@
 
 A clean and reliable stopwatch + countdown timer plugin for [KoReader](https://koreader.rocks/).
 
-![Screenshot](screenshots/main.jpg)
-
 ## Features
 
 - **Stopwatch** with millisecond-accurate timing
