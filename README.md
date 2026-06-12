@@ -32,9 +32,14 @@ You can also assign a gesture or use the Dispatcher to create a quick shortcut.
 
 ## Screenshots
 
-![Stopwatch running](<img width="1072" height="1448" alt="StopWatch-Running" src="https://github.com/user-attachments/assets/3068854b-667c-4bf1-8267-aea62e3dfce8" />)
-![Stopwatch paused](<img width="1072" height="1448" alt="StopWatch-Paused" src="https://github.com/user-attachments/assets/dda778de-b663-46b0-902a-a9fd9bcfdf46" />)
-![Timer running](<img width="1072" height="1448" alt="Timer-Running" src="https://github.com/user-attachments/assets/0a2a5c1c-bb5b-4700-ac1e-72e88c59dcc3" />)
+Stopwatch running:
+<img width="400" height="600" alt="StopWatch-Running" src="https://github.com/user-attachments/assets/3068854b-667c-4bf1-8267-aea62e3dfce8" />
+
+Stopwatch paused:
+<img width="400" height="600" alt="StopWatch-Paused" src="https://github.com/user-attachments/assets/dda778de-b663-46b0-902a-a9fd9bcfdf46" />)
+
+Timer running:
+<img width="400" height="600" alt="Timer-Running" src="https://github.com/user-attachments/assets/0a2a5c1c-bb5b-4700-ac1e-72e88c59dcc3" />
 
 ## Changelog
 
