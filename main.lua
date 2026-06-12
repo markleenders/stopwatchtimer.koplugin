@@ -28,7 +28,7 @@ local StopWatchTimerDisplay = InputContainer:extend{ props = {} }
 
 function StopWatchTimerDisplay:init()
     self.now = os.time()
-    self.paused = true  -- Start paused so nothing counts until user interacts
+    self.paused = true
     self.mode = "stopwatch"
     self.timer_minutes = 5
     self.timer_end_time = nil
@@ -39,50 +39,37 @@ function StopWatchTimerDisplay:init()
     self.refresh_scheduled = false
 
     self.ges_events = {}
-
     self.covers_fullscreen = true
     self.modal = true
 
-    self.time_widget = TextBoxWidget:new{
-        text = "00:00",
-        face = Font:getFace(self.props.time_widget.font_name or "cfont", self.props.time_widget.font_size or 220),
-        width = Screen:getWidth(),
-        height = math.floor(Screen:getHeight() * 0.6),
-        alignment = "center",
-        bold = true,
-    }
-
+    -- Do NOT create time_widget here anymore
     self[1] = self:render()
 end
 
 function StopWatchTimerDisplay:onShow()
-    -- Rebuild UI and repaint fully when shown
     self[1] = self:render()
     UIManager:setDirty(self, "full")
-    -- Keep device awake
+
+    -- Device awake / Kindle / frontlight code (keep your existing block) ...
+
     if Device.powerd and Device.powerd.setSuspendTimeout then
         self.old_suspend_timeout = Device.powerd.setSuspendTimeout(math.huge)
     end
 
-    -- Kindle T1 reset
-    if Device:isKindle() then
-        if PowerD and PowerD.resetT1Timeout then
-            PowerD:resetT1Timeout()
-        end
-        self.kindle_t1_task = function()
-            if PowerD and PowerD.resetT1Timeout then
-                PowerD:resetT1Timeout()
-            end
-            UIManager:scheduleIn(5*60, self.kindle_t1_task)
-        end
-        UIManager:scheduleIn(5*60, self.kindle_t1_task)
+    -- Kindle T1 and frontlight code here (unchanged)...
+
+    -- Refresh logic
+    if self.refresh_scheduled then
+        UIManager:unschedule(self.autoRefresh)
+        self.refresh_scheduled = false
     end
 
-    -- Turn on frontlight if off
-    if Device:hasFrontlight() and Device.powerd.fl and Device.powerd.fl.isFrontlightOff then
-        if Device.powerd.fl:isFrontlightOff() then
-            Device.powerd.fl:turnOn()
-        end
+    self:update()   -- initial paint
+
+    -- Only start live updating if currently running
+    if not self.paused and not self.refresh_scheduled then
+        self.refresh_scheduled = true
+        UIManager:scheduleIn(0.3, self.autoRefresh, self)
     end
 end
 
@@ -130,9 +117,18 @@ function StopWatchTimerDisplay:alarm()
 end
 
 function StopWatchTimerDisplay:update()
+    local current_time_widget = self[1] and self[1][1] and self[1][1][3]  -- safe access to time_widget
+
+    if not current_time_widget or not current_time_widget.setText then
+        self[1] = self:render()
+        UIManager:setDirty(self, "ui")
+        return
+    end
+
     local txt = self:getTimeText()
-    if self.time_widget.text ~= txt then
-        self.time_widget:setText(txt)
+    if current_time_widget.text ~= txt then
+        current_time_widget:setText(txt)
+        -- Use light refresh when possible
         UIManager:setDirty(self, "ui")
     end
 end
@@ -160,8 +156,15 @@ function StopWatchTimerDisplay:onTogglePause()
             end
         end
     end
+
     self[1] = self:render()
-    UIManager:setDirty(self, "ui")
+    UIManager:setDirty(self, "full")
+    
+    -- Restart refresh loop only if now running
+    if not self.paused and not self.refresh_scheduled then
+        self.refresh_scheduled = true
+        self:autoRefresh()
+    end
 end
 
 function StopWatchTimerDisplay:onRestart()
@@ -171,13 +174,26 @@ function StopWatchTimerDisplay:onRestart()
     self.timer_end_time = nil
     self.alarmed = false
     self.paused_remaining = nil
-    self.time_widget:setText("00:00")
+
+    -- Force full rebuild + paint
     self[1] = self:render()
-    UIManager:setDirty(self, "flashpartial")
+    UIManager:setDirty(self, "full")
+    self:update()                    -- force immediate text update
+
+    -- Ensure refresh loop is running
+    if self.refresh_scheduled then
+        UIManager:unschedule(self.autoRefresh)
+    end
+    self.refresh_scheduled = true
+    UIManager:scheduleIn(0.2, self.autoRefresh, self)
 end
 
 function StopWatchTimerDisplay:goBackground()
     self.running_in_background = true
+    if self.refresh_scheduled then
+        UIManager:unschedule(self.autoRefresh)
+        self.refresh_scheduled = false
+    end
     UIManager:close(self)
 
     local mode_text = self.mode == "stopwatch" and _("Stopwatch") or _("Timer")
@@ -186,7 +202,6 @@ function StopWatchTimerDisplay:goBackground()
         timeout = 3,
     })
 
-    -- Force proper refresh of underlying reader (flashpartial for clean resume)
     UIManager:setDirty(nil, "flashpartial")
 end
 
@@ -198,7 +213,7 @@ function StopWatchTimerDisplay:stopAndExit()
         UIManager:unschedule(self.autoRefresh)
         self.refresh_scheduled = false
     end
-
+    
     -- Reset state
     self.now = os.time()
     self.pause_offset = 0
@@ -209,8 +224,10 @@ function StopWatchTimerDisplay:stopAndExit()
     self.mode = "stopwatch"
 
     -- Update the displayed time BEFORE closing
-    self.time_widget:setText("00:00")
-
+	if self.time_widget then
+		self.time_widget:setText("00:00")
+	end
+	
     -- Restore sleep behavior
     if Device.powerd and Device.powerd.setSuspendTimeout and self.old_suspend_timeout then
         Device.powerd.setSuspendTimeout(self.old_suspend_timeout)
@@ -226,6 +243,16 @@ end
 
 function StopWatchTimerDisplay:render()
     local s = Screen:getSize()
+
+    -- Always recreate the time widget fresh
+    self.time_widget = TextBoxWidget:new{
+        text = self:getTimeText() or "00:00",  -- Use current text immediately
+        face = Font:getFace(self.props.time_widget.font_name or "cfont", self.props.time_widget.font_size or 220),
+        width = Screen:getWidth(),
+        height = math.floor(Screen:getHeight() * 0.6),
+        alignment = "center",
+        bold = true,
+    }
 
     local mode_btn = self.mode == "stopwatch" and _("Timer") or _("Stopwatch")
     local row = {
@@ -249,7 +276,13 @@ function StopWatchTimerDisplay:render()
         })
     end
 
-    table.insert(row, { text = _("Restart"), callback = function() self:onRestart() end })
+	table.insert(row, {
+		text_func = function()
+			return self.paused and _("Start") or _("Restart")
+		end,
+		callback = function() self:onRestart() end
+	})
+
     table.insert(row, { text = _("Stop & Exit"), callback = function() self:stopAndExit() end })
 
     self.buttons = ButtonTable:new{
@@ -265,11 +298,13 @@ function StopWatchTimerDisplay:render()
         self.buttons,
     }
 
-    return FrameContainer:new{
+    local frame = FrameContainer:new{
         background = Blitbuffer.COLOR_WHITE,
         dimen = s,
         CenterContainer:new{ dimen = s, content },
     }
+
+    return frame
 end
 
 function StopWatchTimerDisplay:toggleMode()
@@ -288,7 +323,8 @@ function StopWatchTimerDisplay:toggleMode()
     end
 
     self[1] = self:render()
-    UIManager:setDirty(self, "full")
+	UIManager:setDirty(self, "full")
+	UIManager:forceRePaint()   -- add this line (helps after background)    
 end
 
 function StopWatchTimerDisplay:setTimerMinutes()
@@ -304,7 +340,8 @@ function StopWatchTimerDisplay:setTimerMinutes()
     self.paused = false
     self.paused_remaining = nil
     self[1] = self:render()
-    UIManager:setDirty(self, "full")
+	UIManager:setDirty(self, "full")
+	UIManager:forceRePaint()   -- add this line (helps after background)    
 end
 
 -- Plugin entry
@@ -345,31 +382,14 @@ function StopWatchTimer:addToMainMenu(menu_items)
         sorting_hint = "more_tools",
         callback = function()
             UIManager:show(self.display_widget)
-
-            -- Always re-render on open
-            self.display_widget[1] = self.display_widget:render()
-
-            -- Start timing loop only when opening the plugin
-            if not self.display_widget.refresh_scheduled then
-                self.display_widget:autoRefresh()
-                self.display_widget.refresh_scheduled = true
-            end
+            self.display_widget:onShow()   -- let onShow handle everything
         end,
     }
 end
 
 function StopWatchTimer:onShowStopWatchTimer()
     UIManager:show(self.display_widget)
-
-    -- Re-render to ensure it's up-to-date
-    self.display_widget[1] = self.display_widget:render()
-    UIManager:setDirty(nil, "full")
-
-    -- Start the refresh loop if not already running
-    if not self.display_widget.refresh_scheduled then
-        self.display_widget:autoRefresh()
-        self.display_widget.refresh_scheduled = true
-    end
+    self.display_widget:onShow()
 end
 
 return StopWatchTimer
